@@ -1,4 +1,6 @@
-# karma-webpack
+# karma-webpack-with-fast-source-maps
+
+**This is a fork of [karma-webpack](https://github.com/webpack/karma-webpack) which enables file source maps**
 
 ## Installation
 
@@ -84,7 +86,7 @@ Every test file is required using the [require.context](http://webpack.github.io
 
 ### File (Faster)
 
-File source maps are faster and work out of the box. Use: 
+File source maps are faster and work out of the box. Use:
 
 ``` javascript
 webpack: {

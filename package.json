@@ -1,8 +1,11 @@
 {
-  "name": "karma-webpack",
-  "version": "1.7.0",
+  "name": "karma-webpack-with-fast-source-maps",
+  "version": "1.8.0",
   "author": "Tobias Koppers @sokra",
-  "description": "Use webpack with karma",
+  "contributors": [{
+      "name": "Aaron Jensen"
+  }],
+  "description": "Use webpack with karma and fast, file source maps",
   "peerDependencies": {
     "webpack": "^1.4.0"
   },
@@ -21,10 +24,10 @@
     "coffee-loader": "~0.7.2"
   },
   "license": "MIT",
-  "homepage": "http://github.com/webpack/karma-webpack",
+  "homepage": "http://github.com/aaronjensen/karma-webpack",
   "repository": {
     "type": "git",
-    "url": "https://github.com/webpack/karma-webpack.git"
+    "url": "https://github.com/aaronjensen/karma-webpack.git"
   },
   "main": "index.js"
 }
