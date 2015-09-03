@@ -47,6 +47,7 @@ function Plugin(
 	this.basePath = basePath;
 	this.waiting = [];
 	this.hotFiles = [];
+	this.failedFiles = [];
 
 	var compiler = webpack(webpackOptions);
 	var applyPlugins = compiler.compilers || [compiler];
@@ -128,6 +129,14 @@ function Plugin(
 			});
 		}
 	});
+
+	emitter.on("run_complete", function(args) {
+		if (args.getResults().failed) {
+			[].push.apply(this.failedFiles, this.hotFiles);
+		} else {
+			this.failedFiles = [];
+		}
+	}.bind(this));
 
 	emitter.on("exit", function (done) {
 		middleware.close();
@@ -230,7 +239,7 @@ function createPreprocesor(/* config.basePath */basePath, webpackPlugin) {
 			file.sourceMap = sourceMap;
 
 			function addManifest(content) {
-				var hotFiles = JSON.stringify(webpackPlugin.hotFiles);
+				var hotFiles = JSON.stringify(webpackPlugin.hotFiles.concat(webpackPlugin.failedFiles));
 			  return content.replace(/__webpackManifest__\s*=\s*\[\s*\]/gm, "__webpackManifest__=" + hotFiles)
 			}
 
