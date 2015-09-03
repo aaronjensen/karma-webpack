@@ -57,8 +57,13 @@ function Plugin(
 	}, this);
 
 	compiler.plugin("done", function(stats) {
+		if (fileList && fileList.files) console.log(fileList.files.included.map(function(x){return x.path}));
+		// if (files[5]) {
+		// 	files[5].included = false;
+		// }
+		// console.log(stats.compilation.modules);
 		function isBuilt(module) { return module.built; }
-		function getId(module) { return module.id; }
+		function getId(module) { return module.resource; }
 		var builtIds = stats.compilation.modules.filter(isBuilt).map(getId);
 		var affectedIds = builtIds.slice();
 		var seen = [];
@@ -66,23 +71,32 @@ function Plugin(
 		function findAffected(module) {
 			// console.log('checking', module.resource);
 			// console.log(module.dependencies);
-			if (seen.includes(module.id)) return;
-			seen.push(module.id);
+			if (seen.includes(module.resource)) return;
+			seen.push(module.resource);
 
-			if (affectedIds.includes(module.id)) return;
+			if (affectedIds.includes(module.resource)) return;
 			if (!module.dependencies) return;
 
 			module.dependencies.forEach(function (dependency) {
 				if (!dependency.module) return;
 				findAffected(dependency.module);
-				if (affectedIds.includes(dependency.module.id)) {
-					affectedIds.push(module.id);
+				if (affectedIds.includes(dependency.module.resource)) {
+					affectedIds.push(module.resource);
 				}
 			});
 		}
 		stats.compilation.modules.forEach(findAffected);
 		console.log('built', builtIds);
-		console.log('affected', stats.compilation.modules.filter(function(x) { return affectedIds.includes(x.id); }).map(function(x) { return x.resource;}));
+		console.log('affected', affectedIds);
+		// affectedIds.forEach(function(name) {
+		// 	files.push({
+		// 		pattern: name,
+		// 		included: true,
+		// 		watched: false,
+		// 		served: true
+		// 	})
+		// });
+		// console.log('affected', stats.compilation.modules.filter(function(x) { return affectedIds.includes(x.id); }).map(function(x) { return x.resource;}));
 
 		//console.log(stats.compilation.modules.filter(function(x) { return x.built }).map(function(x) { return x.resource }));
 		//console.log(stats.compilation.modules.map(function(x) { return [x.resource, x.dependencies[0] && x.dependencies[0].module] }));
@@ -92,10 +106,27 @@ function Plugin(
 		applyStats.forEach(function(stats) {
 			stats = stats.toJson();
 
+			// var updated = stats.assets.filter(function(asset) {
+			// 	return !affectedIds.every(function (x) { return !x.includes(asset.name) });
+			// });
+			// console.log("updated", updated);
+
 			assets.push.apply(assets, stats.assets);
 			if(stats.assets.length === 0)
 				noAssets = true;
 		});
+
+		// if (fileList) {
+		// 	fileList.files.included.forEach(function(file) {
+		// 		if (!file.path.includes(".spec.")) return;
+		// 		if (affectedIds.includes(file.path)) return;
+		// 		fileList.removeFile(file.path);
+		// 	})
+		//
+		// 	affectedIds.forEach(function(path) {
+		// 		fileList.addFile(path);
+		// 	})
+		// }
 
 		if(!this.waiting || this.waiting.length === 0) {
 			this.notifyKarmaAboutChanges();
@@ -230,7 +261,12 @@ function createPreprocesor(/* config.basePath */basePath, webpackPlugin) {
 	};
 }
 
+function createFramework(/* config.files */files) {
+	// files.unshift()
+}
+
 module.exports = {
 	"webpackPlugin": ["type", Plugin],
-	"preprocessor:webpack": ["factory", createPreprocesor]
+	"preprocessor:webpack": ["factory", createPreprocesor],
+	"framework:webpack": ["factory", createFramework]
 };
