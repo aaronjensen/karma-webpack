@@ -46,6 +46,7 @@ function Plugin(
 	this.files = [];
 	this.basePath = basePath;
 	this.waiting = [];
+	this.hotFiles = [];
 
 	var compiler = webpack(webpackOptions);
 	var applyPlugins = compiler.compilers || [compiler];
@@ -57,13 +58,9 @@ function Plugin(
 	}, this);
 
 	compiler.plugin("done", function(stats) {
-		if (fileList && fileList.files) console.log(fileList.files.included.map(function(x){return x.path}));
-		// if (files[5]) {
-		// 	files[5].included = false;
-		// }
-		// console.log(stats.compilation.modules);
-		function isBuilt(module) { return module.built; }
-		function getId(module) { return module.resource; }
+		// console.log('keys',stats.compilation.entries);
+		function isBuilt(module) { return module.rawRequest && module.built; }
+		function getId(module) { return module.rawRequest; }
 		var builtIds = stats.compilation.modules.filter(isBuilt).map(getId);
 		var affectedIds = builtIds.slice();
 		var seen = [];
@@ -71,62 +68,37 @@ function Plugin(
 		function findAffected(module) {
 			// console.log('checking', module.resource);
 			// console.log(module.dependencies);
-			if (seen.includes(module.resource)) return;
-			seen.push(module.resource);
+			if (seen.includes(module.rawRequest)) return;
+			seen.push(module.rawRequest);
 
-			if (affectedIds.includes(module.resource)) return;
+			if (affectedIds.includes(module.rawRequest)) return;
 			if (!module.dependencies) return;
+			if (!module.rawRequest) return;
 
 			module.dependencies.forEach(function (dependency) {
 				if (!dependency.module) return;
 				findAffected(dependency.module);
-				if (affectedIds.includes(dependency.module.resource)) {
-					affectedIds.push(module.resource);
+				if (affectedIds.includes(dependency.module.rawRequest) ) {
+					// console.log(module);
+					affectedIds.push(module.rawRequest);
 				}
 			});
 		}
 		stats.compilation.modules.forEach(findAffected);
-		console.log('built', builtIds);
-		console.log('affected', affectedIds);
-		// affectedIds.forEach(function(name) {
-		// 	files.push({
-		// 		pattern: name,
-		// 		included: true,
-		// 		watched: false,
-		// 		served: true
-		// 	})
-		// });
-		// console.log('affected', stats.compilation.modules.filter(function(x) { return affectedIds.includes(x.id); }).map(function(x) { return x.resource;}));
+		// console.log('built', builtIds);
+		// console.log('affected', affectedIds);
+		this.hotFiles = affectedIds;
 
-		//console.log(stats.compilation.modules.filter(function(x) { return x.built }).map(function(x) { return x.resource }));
-		//console.log(stats.compilation.modules.map(function(x) { return [x.resource, x.dependencies[0] && x.dependencies[0].module] }));
 		var applyStats = Array.isArray(stats.stats) ? stats.stats : [stats];
 		var assets = [];
 		var noAssets = false;
 		applyStats.forEach(function(stats) {
 			stats = stats.toJson();
 
-			// var updated = stats.assets.filter(function(asset) {
-			// 	return !affectedIds.every(function (x) { return !x.includes(asset.name) });
-			// });
-			// console.log("updated", updated);
-
 			assets.push.apply(assets, stats.assets);
 			if(stats.assets.length === 0)
 				noAssets = true;
 		});
-
-		// if (fileList) {
-		// 	fileList.files.included.forEach(function(file) {
-		// 		if (!file.path.includes(".spec.")) return;
-		// 		if (affectedIds.includes(file.path)) return;
-		// 		fileList.removeFile(file.path);
-		// 	})
-		//
-		// 	affectedIds.forEach(function(path) {
-		// 		fileList.addFile(path);
-		// 	})
-		// }
 
 		if(!this.waiting || this.waiting.length === 0) {
 			this.notifyKarmaAboutChanges();
@@ -170,6 +142,7 @@ Plugin.prototype.notifyKarmaAboutChanges = function() {
 
 Plugin.prototype.addFile = function(entry) {
 	if(this.files.indexOf(entry) >= 0) return;
+	console.log('adding file', entry);
 	this.files.push(entry);
 	return true;
 };
@@ -248,7 +221,7 @@ function createPreprocesor(/* config.basePath */basePath, webpackPlugin) {
 			webpackPlugin.middleware.invalidate();
 		}
 
-		// read blocks until bundle is done
+		// read blocks untiis done
 		webpackPlugin.readFile(path.relative(basePath, file.path), function(err, content, sourceMap) {
 			if (err) {
 				throw err;
@@ -256,13 +229,23 @@ function createPreprocesor(/* config.basePath */basePath, webpackPlugin) {
 
 			file.sourceMap = sourceMap;
 
-			done(err, content && content.toString());
+			function addManifest(content) {
+				var hotFiles = JSON.stringify(webpackPlugin.hotFiles);
+			  return content.replace(/__webpackManifest__\s*=\s*\[\s*\]/gm, "__webpackManifest__=" + hotFiles)
+			}
+
+			done(err, content && addManifest(content.toString()));
 		});
 	};
 }
 
 function createFramework(/* config.files */files) {
-	// files.unshift()
+	// files.unshift({
+	// 	pattern: '__webpack.manifest__.js',
+	// 	included: true,
+	// 	served: true,
+	// 	watched: false,
+	// })
 }
 
 module.exports = {
