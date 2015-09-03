@@ -1,6 +1,6 @@
 # karma-webpack-with-fast-source-maps
 
-**This is a fork of [karma-webpack](https://github.com/webpack/karma-webpack) which enables file source maps**
+**This is a fork of [karma-webpack](https://github.com/webpack/karma-webpack) which enables file source maps and hot testing**
 
 ## Installation
 
@@ -11,54 +11,8 @@ npm install --save-dev karma-webpack
 ## Usage
 
 ``` javascript
-// Karma configuration
+    // in karma.conf.js
 
-module.exports = function(config) {
-	config.set({
-		// ... normal karma configuration
-
-		files: [
-			// all files ending in "_test"
-			'test/*_test.js',
-			'test/**/*_test.js'
-			// each file acts as entry point for the webpack configuration
-		],
-
-		preprocessors: {
-			// add webpack as preprocessor
-			'test/*_test.js': ['webpack'],
-			'test/**/*_test.js': ['webpack']
-		},
-
-		webpack: {
-			// karma watches the test entry points
-			// (you don't need to specify the entry option)
-			// webpack watches dependencies
-
-			// webpack configuration
-		},
-
-		webpackMiddleware: {
-			// webpack-dev-middleware configuration
-			// i. e.
-			noInfo: true
-		},
-
-		plugins: [
-			require("karma-webpack")
-		]
-
-	});
-};
-```
-
-## Alternative usage
-
-This configuration is more performant, but you cannot run single test anymore (only the complete suite).
-
-The above configuration generate a webpack bundle for each test. For many testcases this can result in many big files. The alterative configuration creates a single bundle with all testcases.
-
-``` javascript
 		files: [
 			// only specify one entry point
 			// and require all tests in there
@@ -74,13 +28,31 @@ The above configuration generate a webpack bundle for each test. For many testca
 ``` javascript
 // test/test_index.js
 
+// This gets replaced by karma webpack with the updated files on rebuild
+var __karmaWebpackManifest__ = [];
+
 // require all modules ending in "_test" from the
 // current directory and all subdirectories
 var testsContext = require.context(".", true, /_test$/);
-testsContext.keys().forEach(testsContext);
+
+function inManifest(path) {
+  return __karmaWebpackManifest__.indexOf(path) >= 0;
+}
+
+var runnable = testsContext.keys().filter(inManifest);
+
+// Run all tests if we didn't find any changes
+if (!runnable.length) {
+  runnable = testsContext.keys();
+}
+
+runnable.forEach(testsContext);
 ```
 
 Every test file is required using the [require.context](http://webpack.github.io/docs/context.html#require-context) and compiled with webpack into one test bundle.
+When a file changes, only the affected tests will be run.
+If a failure occurs, the failing group will be rerun each run until they pass.
+If no tests are affected by a change, all tests are rerun (if you `touch` your test_index.js it will run all tests).
 
 ## Source Maps
 

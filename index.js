@@ -46,6 +46,8 @@ function Plugin(
 	this.files = [];
 	this.basePath = basePath;
 	this.waiting = [];
+	this.hotFiles = [];
+	this.failedFiles = [];
 
 	var compiler = webpack(webpackOptions);
 	var applyPlugins = compiler.compilers || [compiler];
@@ -57,6 +59,36 @@ function Plugin(
 	}, this);
 
 	compiler.plugin("done", function(stats) {
+		function isBuilt(module) { return module.rawRequest && module.built; }
+		function getId(module) { return module.rawRequest; }
+		function setTrue(acc, key) { acc[key] = true; return acc; }
+
+		var affectedFiles = stats.compilation.modules
+		  .filter(isBuilt)
+			.map(getId)
+			.reduce(setTrue, {})
+		var seen = {};
+
+		function findAffected(module) {
+			if (seen[module.rawRequest]) return;
+			seen[module.rawRequest] = true;
+
+			if (affectedFiles[module.rawRequest]) return;
+			if (!module.dependencies) return;
+			if (!module.rawRequest) return;
+
+			module.dependencies.forEach(function (dependency) {
+				if (!dependency.module) return;
+
+				findAffected(dependency.module);
+				if (affectedFiles[dependency.module.rawRequest]) {
+					affectedFiles[module.rawRequest] = true;
+				}
+			});
+		}
+		stats.compilation.modules.forEach(findAffected);
+		this.hotFiles = Object.keys(affectedFiles);
+
 		var applyStats = Array.isArray(stats.stats) ? stats.stats : [stats];
 		var assets = [];
 		var noAssets = false;
@@ -97,6 +129,14 @@ function Plugin(
 		}
 	});
 
+	emitter.on("run_complete", function(args) {
+		if (args.getResults().failed) {
+			[].push.apply(this.failedFiles, this.hotFiles);
+		} else {
+			this.failedFiles = [];
+		}
+	}.bind(this));
+
 	emitter.on("exit", function (done) {
 		middleware.close();
 		done();
@@ -110,6 +150,7 @@ Plugin.prototype.notifyKarmaAboutChanges = function() {
 
 Plugin.prototype.addFile = function(entry) {
 	if(this.files.indexOf(entry) >= 0) return;
+	console.log('adding file', entry);
 	this.files.push(entry);
 	return true;
 };
@@ -188,7 +229,7 @@ function createPreprocesor(/* config.basePath */basePath, webpackPlugin) {
 			webpackPlugin.middleware.invalidate();
 		}
 
-		// read blocks until bundle is done
+		// read blocks untiis done
 		webpackPlugin.readFile(path.relative(basePath, file.path), function(err, content, sourceMap) {
 			if (err) {
 				throw err;
@@ -196,7 +237,12 @@ function createPreprocesor(/* config.basePath */basePath, webpackPlugin) {
 
 			file.sourceMap = sourceMap;
 
-			done(err, content && content.toString());
+			function addManifest(content) {
+				var hotFiles = JSON.stringify(webpackPlugin.hotFiles.concat(webpackPlugin.failedFiles));
+			  return content.replace(/__karmaWebpackManifest__\s*=\s*\[\s*\]/gm, "__karmaWebpackManifest__=" + hotFiles)
+			}
+
+			done(err, content && addManifest(content.toString()));
 		});
 	};
 }
