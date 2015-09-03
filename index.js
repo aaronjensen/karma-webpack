@@ -57,6 +57,35 @@ function Plugin(
 	}, this);
 
 	compiler.plugin("done", function(stats) {
+		function isBuilt(module) { return module.built; }
+		function getId(module) { return module.id; }
+		var builtIds = stats.compilation.modules.filter(isBuilt).map(getId);
+		var affectedIds = builtIds.slice();
+		var seen = [];
+
+		function findAffected(module) {
+			// console.log('checking', module.resource);
+			// console.log(module.dependencies);
+			if (seen.includes(module.id)) return;
+			seen.push(module.id);
+
+			if (affectedIds.includes(module.id)) return;
+			if (!module.dependencies) return;
+
+			module.dependencies.forEach(function (dependency) {
+				if (!dependency.module) return;
+				findAffected(dependency.module);
+				if (affectedIds.includes(dependency.module.id)) {
+					affectedIds.push(module.id);
+				}
+			});
+		}
+		stats.compilation.modules.forEach(findAffected);
+		console.log('built', builtIds);
+		console.log('affected', stats.compilation.modules.filter(function(x) { return affectedIds.includes(x.id); }).map(function(x) { return x.resource;}));
+
+		//console.log(stats.compilation.modules.filter(function(x) { return x.built }).map(function(x) { return x.resource }));
+		//console.log(stats.compilation.modules.map(function(x) { return [x.resource, x.dependencies[0] && x.dependencies[0].module] }));
 		var applyStats = Array.isArray(stats.stats) ? stats.stats : [stats];
 		var assets = [];
 		var noAssets = false;
