@@ -59,36 +59,35 @@ function Plugin(
 	}, this);
 
 	compiler.plugin("done", function(stats) {
-		// console.log('keys',stats.compilation.entries);
 		function isBuilt(module) { return module.rawRequest && module.built; }
 		function getId(module) { return module.rawRequest; }
-		var builtIds = stats.compilation.modules.filter(isBuilt).map(getId);
-		var affectedIds = builtIds.slice();
-		var seen = [];
+		function setTrue(acc, key) { acc[key] = true; return acc; }
+
+		var affectedFiles = stats.compilation.modules
+		  .filter(isBuilt)
+			.map(getId)
+			.reduce(setTrue, {})
+		var seen = {};
 
 		function findAffected(module) {
-			// console.log('checking', module.resource);
-			// console.log(module.dependencies);
-			if (seen.includes(module.rawRequest)) return;
-			seen.push(module.rawRequest);
+			if (seen[module.rawRequest]) return;
+			seen[module.rawRequest] = true;
 
-			if (affectedIds.includes(module.rawRequest)) return;
+			if (affectedFiles[module.rawRequest]) return;
 			if (!module.dependencies) return;
 			if (!module.rawRequest) return;
 
 			module.dependencies.forEach(function (dependency) {
 				if (!dependency.module) return;
+
 				findAffected(dependency.module);
-				if (affectedIds.includes(dependency.module.rawRequest) ) {
-					// console.log(module);
-					affectedIds.push(module.rawRequest);
+				if (affectedFiles[dependency.module.rawRequest]) {
+					affectedFiles[module.rawRequest] = true;
 				}
 			});
 		}
 		stats.compilation.modules.forEach(findAffected);
-		// console.log('built', builtIds);
-		// console.log('affected', affectedIds);
-		this.hotFiles = affectedIds;
+		this.hotFiles = Object.keys(affectedFiles);
 
 		var applyStats = Array.isArray(stats.stats) ? stats.stats : [stats];
 		var assets = [];
@@ -248,17 +247,7 @@ function createPreprocesor(/* config.basePath */basePath, webpackPlugin) {
 	};
 }
 
-function createFramework(/* config.files */files) {
-	// files.unshift({
-	// 	pattern: '__webpack.manifest__.js',
-	// 	included: true,
-	// 	served: true,
-	// 	watched: false,
-	// })
-}
-
 module.exports = {
 	"webpackPlugin": ["type", Plugin],
-	"preprocessor:webpack": ["factory", createPreprocesor],
-	"framework:webpack": ["factory", createFramework]
+	"preprocessor:webpack": ["factory", createPreprocesor]
 };
