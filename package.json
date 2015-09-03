@@ -1,10 +1,12 @@
 {
   "name": "karma-webpack-with-fast-source-maps",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "author": "Tobias Koppers @sokra",
-  "contributors": [{
+  "contributors": [
+    {
       "name": "Aaron Jensen"
-  }],
+    }
+  ],
   "description": "Use webpack with karma and fast, file source maps",
   "peerDependencies": {
     "webpack": "^1.4.0"
