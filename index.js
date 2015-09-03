@@ -229,7 +229,7 @@ function createPreprocesor(/* config.basePath */basePath, webpackPlugin) {
 			webpackPlugin.middleware.invalidate();
 		}
 
-		// read blocks untiis done
+		// read blocks until bundle is done
 		webpackPlugin.readFile(path.relative(basePath, file.path), function(err, content, sourceMap) {
 			if (err) {
 				throw err;
