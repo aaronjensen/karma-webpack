@@ -5,7 +5,7 @@
 ## Installation
 
 ``` sh
-npm install --save-dev karma-webpack
+npm install --save-dev karma-webpack-with-fast-source-maps
 ```
 
 ## Usage
