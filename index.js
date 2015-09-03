@@ -150,7 +150,6 @@ Plugin.prototype.notifyKarmaAboutChanges = function() {
 
 Plugin.prototype.addFile = function(entry) {
 	if(this.files.indexOf(entry) >= 0) return;
-	console.log('adding file', entry);
 	this.files.push(entry);
 	return true;
 };
