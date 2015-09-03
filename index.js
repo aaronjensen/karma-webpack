@@ -239,7 +239,7 @@ function createPreprocesor(/* config.basePath */basePath, webpackPlugin) {
 
 			function addManifest(content) {
 				var hotFiles = JSON.stringify(webpackPlugin.hotFiles.concat(webpackPlugin.failedFiles));
-			  return content.replace(/__webpackManifest__\s*=\s*\[\s*\]/gm, "__webpackManifest__=" + hotFiles)
+			  return content.replace(/__karmaWebpackManifest__\s*=\s*\[\s*\]/gm, "__karmaWebpackManifest__=" + hotFiles)
 			}
 
 			done(err, content && addManifest(content.toString()));
